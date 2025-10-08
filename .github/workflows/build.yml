@@ -1,0 +1,33 @@
+name: Build and Deploy Vite App
+
+on:
+  push:
+    branches:
+      - main # Or your default branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./js
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '24' # Or your desired Node.js version
+        cache: 'npm' # Cache npm dependencies for faster builds
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build Vite app
+      run: npm run build # This runs your Vite build command, typically defined in package.json
+
+    - name: Upload build artifact (optional, for deployment)
+      uses: actions/upload-artifact@v4
+      with:
+        path: './dist' # The directory where Vite outputs the build files
