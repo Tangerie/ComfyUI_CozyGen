@@ -20,10 +20,13 @@ def download_latest_artifact_to_js_dist():
 
     # Get workflows (assume only one)
     wf_resp = requests.get(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows")
+    print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows")
     if wf_resp.ok:
+        print(wf_resp.json())
         workflows = wf_resp.json().get("workflows", [])
         if workflows:
             workflow_path = workflows[0]["path"]
+            print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_path}/runs")
             # Get latest successful run
             run_resp = requests.get(
                 f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_path}/runs",
@@ -35,6 +38,7 @@ def download_latest_artifact_to_js_dist():
                 }
             )
             if run_resp.ok:
+                print(run_resp.json())
                 runs = run_resp.json().get("workflow_runs", [])
                 if runs:
                     run_id = runs[0]["id"]
@@ -106,3 +110,4 @@ print("✅ CozyGen API routes mounted.")
 print("✅ CozyGen web UI served at /cozygen/")
 
 WEB_DIRECTORY = "./js/web"
+
