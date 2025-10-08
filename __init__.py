@@ -26,7 +26,8 @@ def download_latest_artifact_to_js_dist():
         workflows = wf_resp.json().get("workflows", [])
         if workflows:
             workflow_path = workflows[0]["path"]
-            print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_path}/runs")
+workflow_file = os.path.basename(workflow_path)
+print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_file}/runs")
             # Get latest successful run
             run_resp = requests.get(
                 f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_path}/runs",
@@ -58,21 +59,21 @@ def download_latest_artifact_to_js_dist():
                                 with zipfile.ZipFile(io.BytesIO(zip_resp.content)) as z:
                                     os.makedirs(DEST_DIR, exist_ok=True)
                                     z.extractall(DEST_DIR)
-                                print(f"✅ Downloaded and extracted latest artifact to {DEST_DIR}/")
+                                print(f"â Downloaded and extracted latest artifact to {DEST_DIR}/")
                             else:
-                                print("❌ Failed to download artifact ZIP.")
+                                print("â Failed to download artifact ZIP.")
                         else:
-                            print("❌ No artifacts found for run.")
+                            print("â No artifacts found for run.")
                     else:
-                        print("❌ Failed to get artifacts for run.")
+                        print("â Failed to get artifacts for run.")
                 else:
-                    print("❌ No successful workflow runs found.")
+                    print("â No successful workflow runs found.")
             else:
-                print("❌ Failed to get workflow runs.")
+                print("â Failed to get workflow runs.")
         else:
-            print("❌ No workflows found for repository.")
+            print("â No workflows found for repository.")
     else:
-        print("❌ Failed to get workflows from GitHub.")
+        print("â Failed to get workflows from GitHub.")
 
 # Call artifact download before handler definition
 download_latest_artifact_to_js_dist()
@@ -106,8 +107,7 @@ server.PromptServer.instance.app.router.add_static(
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
 
-print("✅ CozyGen API routes mounted.")
-print("✅ CozyGen web UI served at /cozygen/")
+print("â CozyGen API routes mounted.")
+print("â CozyGen web UI served at /cozygen/")
 
 WEB_DIRECTORY = "./js/web"
-
