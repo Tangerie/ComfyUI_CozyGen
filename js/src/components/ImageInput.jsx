@@ -8,7 +8,7 @@ const ImageInput = ({ input, value, onFormChange }) => {
     const [previewUrl, setPreviewUrl] = useState(value?.url || '');
     const [galleryItems, setGalleryItems] = useState([]);
     const [currentGalleryPath, setCurrentGalleryPath] = useState('');
-    const [smartResize, setSmartResize] = useState(true);
+    const [smartResize, setSmartResize] = useState(false);
 
     useEffect(() => {
         const fetchGallery = async () => {
@@ -236,5 +236,6 @@ const ImageInput = ({ input, value, onFormChange }) => {
         </div>
     );
 };
+
 
 export default ImageInput;
