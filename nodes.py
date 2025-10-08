@@ -12,6 +12,8 @@ from nodes import SaveImage
 import server # Import server
 import asyncio # Import Import asyncio
 from comfy.comfy_types import node_typing
+import comfy.utils
+import comfy.sd
 
 class _CozyGenDynamicTypes(str):
     basic_types = node_typing.IO.PRIMITIVE.split(",")
@@ -33,7 +35,8 @@ class CozyGenDynamicInput:
         return {
             "required": {
                 "param_name": ("STRING", {"default": "Dynamic Parameter"}),
-                                    "priority": ("INT", {"default": 10}),                "param_type": (["STRING", "INT", "FLOAT", "BOOLEAN", "DROPDOWN"], {"default": "STRING"}),
+                "priority": ("INT", {"default": 10}),                
+                "param_type": (["STRING", "INT", "FLOAT", "BOOLEAN", "DROPDOWN"], {"default": "STRING"}),
                 "default_value": ("STRING", {"default": ""}),
             },
             "optional": {
@@ -352,6 +355,77 @@ class CozyGenChoiceInput:
         
         return (final_value,)
 
+class CozyGenLoraInput:
+    _NODE_CLASS_NAME = "CozyGenLoraInput"
+    
+    def __init__(self):
+        self.loaded_lora = None
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        all_choices = ["None"] + sorted(folder_paths.get_filename_list("loras"))
+
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "param_name": ("STRING", {"default": "Lora Selector"}),
+                "priority": ("INT", {"default": 10}),
+                "default_lora": (all_choices,),
+                "default_strength": ("FLOAT", { "default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01 })
+            },
+            "hidden": {
+                "lora_value": ("STRING", { "default": "" }),
+            }
+        }
+
+    
+    RETURN_TYPES = ("MODEL",)
+    FUNCTION = "get_value"
+    CATEGORY = "CozyGen/Static"
+    
+    def load_lora(self, model, lora_name, strength):
+        if strength == 0 or lora_name == "None":
+            return (model,)
+
+        lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
+        lora = None
+        if self.loaded_lora is not None:
+            if self.loaded_lora[0] == lora_path:
+                lora = self.loaded_lora[1]
+            else:
+                self.loaded_lora = None
+
+        if lora is None:
+            lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+            self.loaded_lora = (lora_path, lora)
+
+        model_lora, _ = comfy.sd.load_lora_for_models(model, None, lora, strength, 0)
+        # print("Loaded Lora", lora_path, strength)
+        return (model_lora,)
+
+    def get_value(self, model, param_name, priority, default_lora, default_strength, lora_value):
+        # print(default_lora, default_strength, lora_value)
+        final_lora = lora_value if len(lora_value) > 0 else default_lora
+            
+        return self.load_lora(model, final_lora, default_strength)
+
+class CozyGenMetaText:
+    _NODE_CLASS_NAME = "CozyGenMetaText"
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "hidden": {
+                "value": ("STRING", {"default": ""}),
+            }
+        }
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "get_value"
+    CATEGORY = "CozyGen/Static"
+    
+    def get_value(self, value):
+        return (value,)
+
 NODE_CLASS_MAPPINGS = {
     "CozyGenOutput": CozyGenOutput,
     "CozyGenVideoOutput": CozyGenVideoOutput,
@@ -361,6 +435,8 @@ NODE_CLASS_MAPPINGS = {
     "CozyGenIntInput": CozyGenIntInput,
     "CozyGenStringInput": CozyGenStringInput,
     "CozyGenChoiceInput": CozyGenChoiceInput,
+    "CozyGenLoraInput": CozyGenLoraInput,
+    "CozyGenMetaText": CozyGenMetaText
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -372,4 +448,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CozyGenIntInput": "CozyGen Int Input",
     "CozyGenStringInput": "CozyGen String Input",
     "CozyGenChoiceInput": "CozyGen Choice Input",
+    "CozyGenLoraInput": "CozyGen Lora Input",
+    "CozyGenMetaText": "CozyGen Meta Text"
 }

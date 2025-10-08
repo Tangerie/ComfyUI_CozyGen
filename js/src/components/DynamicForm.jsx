@@ -3,6 +3,7 @@ import StringInput from './inputs/StringInput';
 import NumberInput from './inputs/NumberInput';
 import BooleanInput from './inputs/BooleanInput';
 import DropdownInput from './inputs/DropdownInput';
+import LoraInput from './inputs/LoraInput';
 
 const renderInput = (input, formData, onFormChange, randomizeState, onRandomizeToggle, bypassedState, onBypassToggle) => {
     
@@ -54,6 +55,13 @@ const renderInput = (input, formData, onFormChange, randomizeState, onRandomizeT
                         choices={inputs['choices']}
                         disabled={isBypassed}
                     />;
+            break;
+        case 'LORA':
+            inputComponent = <LoraInput
+                    value={value ?? { lora: inputs["default_lora"], strength: inputs["default_strength"] }}
+                    onChange={(val) => onFormChange(param_name, val)}
+                    choices={inputs['choices']}
+                />;
             break;
         default:
             inputComponent = <p>Unsupported input type: {param_type}</p>;
@@ -107,7 +115,7 @@ const DynamicForm = ({ inputs, formData, onFormChange, randomizeState, onRandomi
       <h2 className="text-lg font-semibold text-white mb-2">Controls</h2>
       <div className="grid grid-cols-1 xs:grid-cols-2 gap-x-4 gap-y-4">
         {inputs.map(input => (
-            <div key={input.id} className={input.inputs['Multiline'] ? 'xs:col-span-2' : ''}>{renderInput(input, formData, onFormChange, randomizeState, onRandomizeToggle, bypassedState, onBypassToggle)}</div>
+            <div key={input.id} className={(input.inputs['Multiline'] || input.inputs.param_type === 'LORA') ? 'xs:col-span-2' : ''}>{renderInput(input, formData, onFormChange, randomizeState, onRandomizeToggle, bypassedState, onBypassToggle)}</div>
         ))}
       </div>
     </div>

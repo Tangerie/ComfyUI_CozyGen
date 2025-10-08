@@ -89,7 +89,7 @@ const choiceTypeMapping = {
 };
 
 function App() {
-    const [workflows, setWorkflows] = useState([]);
+  const [workflows, setWorkflows] = useState([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState(
     localStorage.getItem('selectedWorkflow') || null
   );
@@ -215,7 +215,8 @@ function App() {
             'CozyGenFloatInput', 
             'CozyGenIntInput', 
             'CozyGenStringInput',
-            'CozyGenChoiceInput'
+            'CozyGenChoiceInput',
+            'CozyGenLoraInput'
         ];
 
         // Find all nodes that are one of our recognized input types
@@ -235,10 +236,13 @@ function App() {
         const inputsWithChoices = await Promise.all(allInputNodes.map(async (input) => {
             const isDynamicDropdown = input.class_type === 'CozyGenDynamicInput' && input.inputs['param_type'] === 'DROPDOWN';
             const isChoiceNode = input.class_type === 'CozyGenChoiceInput';
+            const isLoraNode = input.class_type === "CozyGenLoraInput";
 
-            if (isDynamicDropdown || isChoiceNode) {
+            if (isDynamicDropdown || isChoiceNode || isLoraNode) {
                 const param_name = input.inputs['param_name'];
                 let choiceType = input.inputs['choice_type'] || (input.properties && input.properties['choice_type']);
+                
+                if(isLoraNode) choiceType = "loras";
 
                 if (!choiceType && isDynamicDropdown) { // Fallback for older dynamic nodes
                     choiceType = choiceTypeMapping[param_name];
@@ -250,6 +254,7 @@ function App() {
                         // For dynamic nodes, we put choices in a hidden field.
                         // For the new choice node, the JS will handle it, but we can preload here.
                         input.inputs.choices = choicesData.choices || [];
+                        if(isLoraNode) input.inputs.choices.unshift("None");
                     } catch (error) {
                         console.error(`Error fetching choices for ${param_name} (choiceType: ${choiceType}):`, error);
                         input.inputs.choices = [];
@@ -278,6 +283,8 @@ function App() {
                     }
                 } else if (input.class_type === 'CozyGenChoiceInput') {
                     defaultValue = input.inputs.choices && input.inputs.choices.length > 0 ? input.inputs.choices[0] : '';
+                } else if(input.class_type === "CozyGenLoraInput") {
+                    defaultValue = { lora: input.inputs.default_lora, strength: input.inputs.default_strength };
                 } else if (input.class_type === 'CozyGenImageInput') {
                     defaultValue = '';
                 }
@@ -296,6 +303,7 @@ function App() {
 
       } catch (error) {
         console.error(error);
+        handleWorkflowSelect(null);
       }
     };
 
@@ -310,7 +318,7 @@ function App() {
     setDynamicInputs([]);
     setFormData({});
     setRandomizeState({});
-    setPreviewImage(null);
+    setPreviewImages([]);
   };
 
   const handleFormChange = (inputName, value) => {
@@ -341,6 +349,7 @@ function App() {
 
     try {
         let finalWorkflow = JSON.parse(JSON.stringify(workflowData));
+        const metaTextLines = [];
 
         // --- Bypass and Value Injection Logic (condensed for brevity) ---
         const COZYGEN_INPUT_TYPES_WITH_BYPASS = ['CozyGenDynamicInput', 'CozyGenChoiceInput'];
@@ -411,6 +420,14 @@ function App() {
                     nodeToUpdate.inputs.default_value = valueToInject;
                 } else if (dynamicNode.class_type === 'CozyGenChoiceInput') {
                     nodeToUpdate.inputs.value = valueToInject;
+                } else if(dynamicNode.class_type === 'CozyGenLoraInput') {
+                    const { lora, strength }  = valueToInject;
+                    if(lora !== "None" && strength !== 0) {
+                        
+                        metaTextLines.push(`${dynamicNode.inputs.param_name} = ${lora}:${strength.toFixed(2)}`)
+                    }
+                    nodeToUpdate.inputs.default_strength = strength;
+                    nodeToUpdate.inputs.lora_value = lora;
                 }
             }
         });
@@ -427,6 +444,12 @@ function App() {
             }
             if (finalWorkflow[node.id]) {
                 finalWorkflow[node.id].inputs.image_filename = image_filename;
+            }
+        }
+
+        for(const id of Object.keys(finalWorkflow)) {
+            if(finalWorkflow[id].class_type === "CozyGenMetaText") {
+                finalWorkflow[id].inputs = { value: metaTextLines.join("\n") };
             }
         }
 
@@ -492,13 +515,25 @@ function App() {
                   onSelect={handleWorkflowSelect}
                 />
 
+                {/* Render ImageInput separately */}
+                {dynamicInputs.filter(input => input.class_type === 'CozyGenImageInput').map(input => (
+                    <ImageInput
+                        key={input.id}
+                        input={input}
+                        value={formData[input.inputs.param_name]}
+                        onFormChange={handleFormChange}
+                        onBypassToggle={handleBypassToggle}
+                        disabled={bypassedState[input.inputs.param_name] || false}
+                    />
+                ))}
+                
                 {/* New, Corrected Rendering Logic */}
                 <DynamicForm
                     inputs={dynamicInputs
                         .filter(input => input.class_type !== 'CozyGenImageInput')
                         .map(input => {
                             // Map new static node properties to the format DynamicForm expects
-                            if (['CozyGenFloatInput', 'CozyGenIntInput', 'CozyGenStringInput', 'CozyGenChoiceInput'].includes(input.class_type)) {
+                            if (['CozyGenFloatInput', 'CozyGenIntInput', 'CozyGenStringInput', 'CozyGenChoiceInput', 'CozyGenLoraInput'].includes(input.class_type)) {
                                 let param_type = input.class_type.replace('CozyGen', '').replace('Input', '').toUpperCase();
                                 if (param_type === 'CHOICE') {
                                     param_type = 'DROPDOWN'; // Map Choice to Dropdown
@@ -524,17 +559,7 @@ function App() {
                     onBypassToggle={handleBypassToggle}
                 />
 
-                {/* Render ImageInput separately */}
-                {dynamicInputs.filter(input => input.class_type === 'CozyGenImageInput').map(input => (
-                    <ImageInput
-                        key={input.id}
-                        input={input}
-                        value={formData[input.inputs.param_name]}
-                        onFormChange={handleFormChange}
-                        onBypassToggle={handleBypassToggle}
-                        disabled={bypassedState[input.inputs.param_name] || false}
-                    />
-                ))}
+                
             </div>
         </div>
 
