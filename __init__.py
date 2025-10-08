@@ -13,69 +13,15 @@ import zipfile
 import io
 
 def download_latest_artifact_to_js_dist():
-    OWNER = "Tangerie"
-    REPO = "ComfyUI_CozyGen"
-    BRANCH = "master"
     DEST_DIR = os.path.join(os.path.dirname(__file__), "js", "dist")
     os.makedirs(DEST_DIR, exist_ok=True)
-    # Get workflows (assume only one)
-    wf_resp = requests.get(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows")
-    print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows")
-    if wf_resp.ok:
-        print(wf_resp.json())
-        workflows = wf_resp.json().get("workflows", [])
-        if workflows:
-            workflow_path = workflows[0]["path"]
-            workflow_file = os.path.basename(workflow_path)
-            print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_file}/runs")
-            # Get latest successful run
-            run_resp = requests.get(
-                f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_path}/runs",
-                params={
-                    "per_page": 1,
-                    "branch": BRANCH,
-                    "event": "push",
-                    "status": "success",
-                }
-            )
-            if run_resp.ok:
-                print(run_resp.json())
-                runs = run_resp.json().get("workflow_runs", [])
-                if runs:
-                    run_id = runs[0]["id"]
-                    print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/runs/{run_id}/artifacts")
-                    # Get artifacts
-                    art_resp = requests.get(
-                        f"https://api.github.com/repos/{OWNER}/{REPO}/actions/runs/{run_id}/artifacts"
-                    )
-                    if art_resp.ok:
-                        artifacts = art_resp.json().get("artifacts", [])
-                        if artifacts:
-                            artifact_id = artifacts[0]["id"]
-                            # Download artifact ZIP
-                            zip_resp = requests.get(
-                                f"https://api.github.com/repos/{OWNER}/{REPO}/actions/artifacts/{artifact_id}/zip"
-                            )
-                            if zip_resp.ok:
-                                with zipfile.ZipFile(io.BytesIO(zip_resp.content)) as z:
-                                    os.makedirs(DEST_DIR, exist_ok=True)
-                                    z.extractall(DEST_DIR)
-                                print(f"â Downloaded and extracted latest artifact to {DEST_DIR}/")
-                            else:
-                                print("â Failed to download artifact ZIP.")
-                        else:
-                            print("â No artifacts found for run.")
-                    else:
-                        print("â Failed to get artifacts for run.")
-                else:
-                    print("â No successful workflow runs found.")
-            else:
-                print("â Failed to get workflow runs.")
-        else:
-            print("â No workflows found for repository.")
-    else:
-        print("â Failed to get workflows from GitHub.")
-
+    zip_resp = requests.get(
+        f"https://nightly.link/Tangerie/ComfyUI_CozyGen/workflows/build/master/artifact.zip"
+    )
+    if zip_resp.ok:
+        with zipfile.ZipFile(io.BytesIO(zip_resp.content)) as z:
+            z.extractall(DEST_DIR)
+            print(DEST_DIR)
 # Call artifact download before handler definition
 download_latest_artifact_to_js_dist()
 # --- End artifact block ---

@@ -39,4 +39,4 @@ node_modules/
 # Cursor related files
 .cursor/
 
-workflows/
+workflows/*.json
