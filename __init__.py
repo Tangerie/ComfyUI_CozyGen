@@ -17,7 +17,7 @@ def download_latest_artifact_to_js_dist():
     REPO = "ComfyUI_CozyGen"
     BRANCH = "master"
     DEST_DIR = os.path.join(os.path.dirname(__file__), "js", "dist")
-
+    os.makedirs(DEST_DIR, exist_ok=True)
     # Get workflows (assume only one)
     wf_resp = requests.get(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows")
     print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows")
@@ -27,7 +27,7 @@ def download_latest_artifact_to_js_dist():
         if workflows:
             workflow_path = workflows[0]["path"]
             workflow_file = os.path.basename(workflow_path)
-            # print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_file}/runs")
+            print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_file}/runs")
             # Get latest successful run
             run_resp = requests.get(
                 f"https://api.github.com/repos/{OWNER}/{REPO}/actions/workflows/{workflow_path}/runs",
@@ -43,6 +43,7 @@ def download_latest_artifact_to_js_dist():
                 runs = run_resp.json().get("workflow_runs", [])
                 if runs:
                     run_id = runs[0]["id"]
+                    print(f"https://api.github.com/repos/{OWNER}/{REPO}/actions/runs/{run_id}/artifacts")
                     # Get artifacts
                     art_resp = requests.get(
                         f"https://api.github.com/repos/{OWNER}/{REPO}/actions/runs/{run_id}/artifacts"
@@ -111,4 +112,5 @@ print("â CozyGen API routes mounted.")
 print("â CozyGen web UI served at /cozygen/")
 
 WEB_DIRECTORY = "./js/web"
+
 
