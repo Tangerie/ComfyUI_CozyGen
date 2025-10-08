@@ -531,6 +531,8 @@ function App() {
                         input={input}
                         value={formData[input.inputs.param_name]}
                         onFormChange={handleFormChange}
+                        onBypassToggle={handleBypassToggle}
+                        disabled={bypassedState[input.inputs.param_name] || false}
                     />
                 ))}
             </div>
