@@ -30,4 +30,4 @@ jobs:
     - name: Upload build artifact (optional, for deployment)
       uses: actions/upload-artifact@v4
       with:
-        path: './dist' # The directory where Vite outputs the build files
+        path: './js/dist' # The directory where Vite outputs the build files
