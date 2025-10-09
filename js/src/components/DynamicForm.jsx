@@ -58,7 +58,7 @@ const renderInput = (input, formData, onFormChange, randomizeState, onRandomizeT
             break;
         case 'LORA':
             inputComponent = <LoraInput
-                    value={value ?? { lora: inputs["default_lora"], strength: inputs["default_strength"] }}
+                    value={value ?? { lora: inputs["lora_value"], strength: inputs["strength_value"] }}
                     onChange={(val) => onFormChange(param_name, val)}
                     choices={inputs['choices']}
                 />;

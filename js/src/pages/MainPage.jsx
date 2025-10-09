@@ -284,7 +284,7 @@ function App() {
                 } else if (input.class_type === 'CozyGenChoiceInput') {
                     defaultValue = input.inputs.choices && input.inputs.choices.length > 0 ? input.inputs.choices[0] : '';
                 } else if(input.class_type === "CozyGenLoraInput") {
-                    defaultValue = { lora: input.inputs.default_lora, strength: input.inputs.default_strength };
+                    defaultValue = { lora: input.inputs.lora_value, strength: input.inputs.strength_value };
                 } else if (input.class_type === 'CozyGenImageInput') {
                     defaultValue = '';
                 }
@@ -426,7 +426,7 @@ function App() {
                         
                         metaTextLines.push(`${dynamicNode.inputs.param_name} = ${lora}:${strength.toFixed(2)}`)
                     }
-                    nodeToUpdate.inputs.default_strength = strength;
+                    nodeToUpdate.inputs.strength_value = strength;
                     nodeToUpdate.inputs.lora_value = lora;
                 }
             }

@@ -271,7 +271,7 @@ class CozyGenIntInput:
             "required": {
                 "param_name": ("STRING", {"default": "Int Parameter"}),
                 "priority": ("INT", {"default": 10}),
-                "default_value": ("INT", {"default": 1}),
+                "default_value": ("INT", {"default": 1, "min": -9999999999, "max": 9999999999, "step": 1}),
                 "min_value": ("INT", {"default": 0}),
                 "max_value": ("INT", {"default": 9999999999, "max": 9999999999}),
                 "step": ("INT", {"default": 1}),
@@ -291,7 +291,7 @@ class CozyGenStringInput:
             "required": {
                 "param_name": ("STRING", {"default": "String Parameter"}),
                 "priority": ("INT", {"default": 10}),
-                "default_value": ("STRING", {"default": ""}),
+                "default_value": ("STRING", { "default": "", "multiline": True }),
                 "display_multiline": ("BOOLEAN", {"default": False}),
             }
         }
@@ -362,20 +362,20 @@ class CozyGenLoraInput:
         self.loaded_lora = None
     
     @classmethod
+    def get_choices(cls):
+        return ["None"] + sorted([x for x in folder_paths.get_filename_list("loras") if not x.startswith("hidden/")])
+    
+    @classmethod
     def INPUT_TYPES(cls):
-        all_choices = ["None"] + sorted(folder_paths.get_filename_list("loras"))
 
         return {
             "required": {
                 "model": ("MODEL",),
                 "param_name": ("STRING", {"default": "Lora Selector"}),
                 "priority": ("INT", {"default": 10}),
-                "default_lora": (all_choices,),
-                "default_strength": ("FLOAT", { "default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01 })
+                "lora_value": (CozyGenLoraInput.get_choices(), { "default": "None" }),
+                "strength_value": ("FLOAT", { "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05 })
             },
-            "hidden": {
-                "lora_value": ("STRING", { "default": "" }),
-            }
         }
 
     
@@ -384,9 +384,6 @@ class CozyGenLoraInput:
     CATEGORY = "CozyGen/Static"
     
     def load_lora(self, model, lora_name, strength):
-        if strength == 0 or lora_name == "None":
-            return (model,)
-
         lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
         lora = None
         if self.loaded_lora is not None:
@@ -403,11 +400,11 @@ class CozyGenLoraInput:
         # print("Loaded Lora", lora_path, strength)
         return (model_lora,)
 
-    def get_value(self, model, param_name, priority, default_lora, default_strength, lora_value):
-        # print(default_lora, default_strength, lora_value)
-        final_lora = lora_value if len(lora_value) > 0 else default_lora
-            
-        return self.load_lora(model, final_lora, default_strength)
+    def get_value(self, model, param_name, priority, lora_value, strength_value):
+        if lora_value not in CozyGenLoraInput.get_choices() or lora_value == "None" or strength_value == 0:
+            return (model,)
+        
+        return self.load_lora(model, lora_value, strength_value)
 
 class CozyGenMetaText:
     _NODE_CLASS_NAME = "CozyGenMetaText"
@@ -415,10 +412,11 @@ class CozyGenMetaText:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "hidden": {
-                "value": ("STRING", {"default": ""}),
+            "required": {
+                "value": ("STRING", {"default": ""})
             }
         }
+        
     RETURN_TYPES = ("STRING",)
     FUNCTION = "get_value"
     CATEGORY = "CozyGen/Static"
