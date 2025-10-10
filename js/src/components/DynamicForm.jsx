@@ -48,6 +48,13 @@ const renderInput = (input, formData, onFormChange, randomizeState, onRandomizeT
                         disabled={isBypassed}
                     />;
             break;
+        case 'BOOL':
+            inputComponent = <BooleanInput
+                        value={value}
+                        onChange={(val) => onFormChange(param_name, val)}
+                        disabled={false}
+                    />;
+            break;
         case 'DROPDOWN':
             inputComponent = <DropdownInput
                         value={value}

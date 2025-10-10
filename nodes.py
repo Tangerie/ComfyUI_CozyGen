@@ -8,12 +8,15 @@ import base64 # New import
 import io # New import
 
 import folder_paths
-from nodes import SaveImage
+from nodes import SaveImage, LoadImage
 import server # Import server
 import asyncio # Import Import asyncio
 from comfy.comfy_types import node_typing
+from comfy.comfy_types.node_typing import IO
 import comfy.utils
 import comfy.sd
+
+
 
 class _CozyGenDynamicTypes(str):
     basic_types = node_typing.IO.PRIMITIVE.split(",")
@@ -34,43 +37,43 @@ class CozyGenDynamicInput:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "param_name": ("STRING", {"default": "Dynamic Parameter"}),
-                "priority": ("INT", {"default": 10}),                
-                "param_type": (["STRING", "INT", "FLOAT", "BOOLEAN", "DROPDOWN"], {"default": "STRING"}),
-                "default_value": ("STRING", {"default": ""}),
+                "param_name": (IO.STRING, {"default": "Dynamic Parameter"}),
+                "priority": (IO.INT, {"default": 10}),                
+                "param_type": ([IO.STRING, IO.INT, IO.FLOAT, IO.BOOLEAN, "DROPDOWN"], {"default": IO.STRING}),
+                "default_value": (IO.STRING, {"default": ""}),
             },
             "optional": {
-                "add_randomize_toggle": ("BOOLEAN", {"default": False}),
-                "choice_type": ("STRING", {"default": ""}),
-                "display_bypass": ("BOOLEAN", {"default": False}),
+                "add_randomize_toggle": (IO.BOOLEAN, {"default": False}),
+                "choice_type": (IO.STRING, {"default": ""}),
+                "display_bypass": (IO.BOOLEAN, {"default": False}),
             },
             "hidden": {
-                "choices": ("STRING", {"default": ""}), # Used by JS for dropdowns
-                "multiline": ("BOOLEAN", {"default": False}), # Used by JS for strings
-                "min_value": ("FLOAT", {"default": 0.0}), # Used by JS for numbers
-                "max_value": ("FLOAT", {"default": 1.0}), # Used by JS for numbers
-                "step": ("FLOAT", {"default": 0.0}), # Used by JS for numbers
+                "choices": (IO.STRING, {"default": ""}), # Used by JS for dropdowns
+                "multiline": (IO.BOOLEAN, {"default": False}), # Used by JS for strings
+                "min_value": (IO.FLOAT, {"default": 0.0}), # Used by JS for numbers
+                "max_value": (IO.FLOAT, {"default": 1.0}), # Used by JS for numbers
+                "step": (IO.FLOAT, {"default": 0.0}), # Used by JS for numbers
             }
         }
 
-    RETURN_TYPES = (node_typing.IO.ANY,) # Can return any type
+    RETURN_TYPES = (IO.ANY,) # Can return any type
     FUNCTION = "get_dynamic_value"
 
     CATEGORY = "CozyGen"
 
     def get_dynamic_value(self, param_name, priority, param_type, default_value, add_randomize_toggle=False, choice_type="", min_value=0.0, max_value=1.0, choices="", multiline=False, step=None, display_bypass=False):
         # Convert default_value based on param_type
-        if param_type == "INT":
+        if param_type == IO.INT:
             try:
                 value = int(default_value)
             except (ValueError, TypeError):
                 value = 0  # Default to 0 if conversion fails
-        elif param_type == "FLOAT":
+        elif param_type == IO.FLOAT:
             try:
                 value = float(default_value)
             except (ValueError, TypeError):
                 value = 0.0  # Default to 0.0 if conversion fails
-        elif param_type == "BOOLEAN":
+        elif param_type == IO.BOOLEAN:
             value = str(default_value).lower() == "true"
         elif param_type == "DROPDOWN":
             value = default_value # For dropdowns, default_value is already the selected string
@@ -79,40 +82,55 @@ class CozyGenDynamicInput:
         return (value, )
 
 
-class CozyGenImageInput:
+class CozyGenBoolInput:
     @classmethod
-    def INPUT_TYPES(s):
-        # This input now correctly accepts a STRING, which will be our Base64 data.
+    def INPUT_TYPES(cls):
         return {
             "required": {
-                "param_name": ("STRING", {"default": "Image Input"}),
-                "image_filename": ("STRING", {"default": ""}),
+                "param_name": (IO.STRING, {"default": "Bool Parameter"}),
+                "priority": (IO.INT, {"default": 10}),                
+                "value": (IO.BOOLEAN, { "default": False })
+            },
+        }
+
+    RETURN_TYPES = (IO.BOOLEAN,) # Can return any type
+    FUNCTION = "get_value"
+
+    CATEGORY = "CozyGen/Static"
+
+    def get_value(self, param_name, priority, value):
+        return (value, )
+
+
+class CozyGenImageInput():
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "param_name": (IO.STRING, {"default": "Image Input"}),
+                "image_filename": (IO.STRING, {"default": ""}),
+            },
+            "optional": {
+                "default_image": (IO.IMAGE, )
+            },
+            "hidden": {
+                "is_cozy": ( IO.BOOLEAN, { "default": False } )
             }
         }
 
     # The return types are now the standard IMAGE and MASK for ComfyUI image loaders.
-    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_TYPES = (IO.IMAGE, )
     FUNCTION = "load_image"
     CATEGORY = "CozyGen"
 
-    def load_image(self, param_name, image_filename):
-        image_path = folder_paths.get_input_directory() + os.sep + image_filename
-        img = Image.open(image_path)
-        image_np = np.array(img).astype(np.float32) / 255.0
-        image_tensor = torch.from_numpy(image_np)[None,]
-
-        # Handle images with an alpha channel (transparency) to create a mask
-        if 'A' in img.getbands():
-            mask = image_tensor[:, :, :, 3]
-            image = image_tensor[:, :, :, :3] # Keep only the RGB channels for the image
+    def load_image(self, param_name, image_filename : str, is_cozy = False, default_image = None):
+        print("IsCozy =", is_cozy)
+        if is_cozy:
+            return (LoadImage.load_image(None, image_filename)[0], )
         else:
-            # If no alpha channel, the mask is all white (fully opaque)
-            mask = torch.ones_like(image_tensor[:, :, :, 0])
-            image = image_tensor
+            return (default_image, )
 
-        return (image, mask)
-
-
+        
 class CozyGenOutput(SaveImage):
     def __init__(self):
         super().__init__()
@@ -122,22 +140,18 @@ class CozyGenOutput(SaveImage):
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "images": ("IMAGE", ),
+                "images": (IO.IMAGE, ),
             },
             "optional": {
-                "filename_prefix": ("STRING", {"default": "CozyGen/output"}),
-            },
-            "hidden": {
-                "prompt": "PROMPT",
-                "extra_pnginfo": "EXTRA_PNGINFO"
+                "filename_prefix": (IO.STRING, {"default": "CozyGen/output"}),
             },
         }
 
     FUNCTION = "save_images"
     CATEGORY = "CozyGen"
 
-    def save_images(self, images, filename_prefix="CozyGen/output", prompt=None, extra_pnginfo=None):
-        results = super().save_images(images, filename_prefix, prompt, extra_pnginfo)
+    def save_images(self, images, filename_prefix="CozyGen/output"):
+        results = super().save_images(images, filename_prefix)
         server_instance = server.PromptServer.instance
 
         if server_instance and results and 'ui' in results and 'images' in results['ui']:
@@ -172,16 +186,16 @@ class CozyGenVideoOutput:
 
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": 
-                    {"images": ("IMAGE", ),
-                     "frame_rate": ("INT", {"default": 8, "min": 1, "max": 24}),
-                     "loop_count": ("INT", {"default": 0, "min": 0, "max": 100}),
-                     "filename_prefix": ("STRING", {"default": "CozyGen/video"}),
-                     "format": (["video/webm", "video/mp4", "image/gif"],),
-                     "pingpong": ("BOOLEAN", {"default": False}),
-                     },
-                "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
-                }
+        return {
+        "required": {
+            "images": (IO.IMAGE, ),
+                "frame_rate": (IO.INT, {"default": 8, "min": 1, "max": 24}),
+                "loop_count": (IO.INT, {"default": 0, "min": 0, "max": 100}),
+                "filename_prefix": (IO.STRING, {"default": "CozyGen/video"}),
+                "format": (["video/webm", "video/mp4", "image/gif"],),
+                "pingpong": (IO.BOOLEAN, {"default": False}),
+            },
+        }
 
     RETURN_TYPES = ()
     FUNCTION = "save_video"
@@ -189,7 +203,7 @@ class CozyGenVideoOutput:
 
     CATEGORY = "CozyGen"
 
-    def save_video(self, images, frame_rate, loop_count, filename_prefix="CozyGen/video", format="video/webm", pingpong=False, prompt=None, extra_pnginfo=None):
+    def save_video(self, images, frame_rate, loop_count, filename_prefix="CozyGen/video", format="video/webm", pingpong=False):
         filename_prefix += self.prefix_append
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
         results = list()
@@ -249,16 +263,17 @@ class CozyGenFloatInput:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "param_name": ("STRING", {"default": "Float Parameter"}),
-                "priority": ("INT", {"default": 10}),
-                "default_value": ("FLOAT", {"default": 1.0}),
-                "min_value": ("FLOAT", {"default": 0.0}),
-                "max_value": ("FLOAT", {"default": 1024.0}),
-                "step": ("FLOAT", {"default": 0.1}),
-                "add_randomize_toggle": ("BOOLEAN", {"default": False}),
+                "param_name": (IO.STRING, {"default": "Float Parameter"}),
+                "priority": (IO.INT, {"default": 10}),
+                "default_value": (IO.FLOAT, {"default": 1.0}),
+                "min_value": (IO.FLOAT, {"default": 0.0}),
+                "max_value": (IO.FLOAT, {"default": 1024.0}),
+                "step": (IO.FLOAT, {"default": 0.1}),
+                "add_randomize_toggle": (IO.BOOLEAN, {"default": False}),
             }
         }
-    RETURN_TYPES = ("FLOAT",)
+    
+    RETURN_TYPES = (IO.FLOAT,)
     FUNCTION = "get_value"
     CATEGORY = "CozyGen/Static"
     def get_value(self, param_name, priority, default_value, min_value, max_value, step, add_randomize_toggle):
@@ -269,16 +284,17 @@ class CozyGenIntInput:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "param_name": ("STRING", {"default": "Int Parameter"}),
-                "priority": ("INT", {"default": 10}),
-                "default_value": ("INT", {"default": 1, "min": -9999999999, "max": 9999999999, "step": 1}),
-                "min_value": ("INT", {"default": 0}),
-                "max_value": ("INT", {"default": 9999999999, "max": 9999999999}),
-                "step": ("INT", {"default": 1}),
-                "add_randomize_toggle": ("BOOLEAN", {"default": False}),
+                "param_name": (IO.STRING, {"default": "Int Parameter"}),
+                "priority": (IO.INT, {"default": 10}),
+                "default_value": (IO.INT, {"default": 1, "min": -9999999999, "max": 9999999999, "step": 1}),
+                "min_value": (IO.INT, {"default": 0}),
+                "max_value": (IO.INT, {"default": 9999999999, "max": 9999999999}),
+                "step": (IO.INT, {"default": 1}),
+                "add_randomize_toggle": (IO.BOOLEAN, {"default": False}),
             }
         }
-    RETURN_TYPES = ("INT",)
+    
+    RETURN_TYPES = (IO.INT,)
     FUNCTION = "get_value"
     CATEGORY = "CozyGen/Static"
     def get_value(self, param_name, priority, default_value, min_value, max_value, step, add_randomize_toggle):
@@ -289,13 +305,14 @@ class CozyGenStringInput:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "param_name": ("STRING", {"default": "String Parameter"}),
-                "priority": ("INT", {"default": 10}),
-                "default_value": ("STRING", { "default": "", "multiline": True }),
-                "display_multiline": ("BOOLEAN", {"default": False}),
+                "param_name": (IO.STRING, {"default": "String Parameter"}),
+                "priority": (IO.INT, {"default": 10}),
+                "default_value": (IO.STRING, { "default": "", "multiline": True }),
+                "display_multiline": (IO.BOOLEAN, {"default": False}),
             }
         }
-    RETURN_TYPES = ("STRING",)
+    
+    RETURN_TYPES = (IO.STRING,)
     FUNCTION = "get_value"
     CATEGORY = "CozyGen/Static"
     def get_value(self, param_name, priority, default_value, display_multiline):
@@ -322,14 +339,14 @@ class CozyGenChoiceInput:
 
         return {
             "required": {
-                "param_name": ("STRING", {"default": "Choice Parameter"}),
-                "priority": ("INT", {"default": 10}),
+                "param_name": (IO.STRING, {"default": "Choice Parameter"}),
+                "priority": (IO.INT, {"default": 10}),
                 "choice_type": (all_choice_types,),
                 "default_choice": (all_choices,),
-                "display_bypass": ("BOOLEAN", {"default": False}),
+                "display_bypass": (IO.BOOLEAN, {"default": False}),
             },
             "hidden": {
-                "value": ("STRING", { "default": "" }) # This is the value from the web UI
+                "value": (IO.STRING, { "default": "" }) # This is the value from the web UI
             }
         }
 
@@ -371,10 +388,10 @@ class CozyGenLoraInput:
         return {
             "required": {
                 "model": ("MODEL",),
-                "param_name": ("STRING", {"default": "Lora Selector"}),
-                "priority": ("INT", {"default": 10}),
+                "param_name": (IO.STRING, {"default": "Lora Selector"}),
+                "priority": (IO.INT, {"default": 10}),
                 "lora_value": (CozyGenLoraInput.get_choices(), { "default": "None" }),
-                "strength_value": ("FLOAT", { "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05 })
+                "strength_value": (IO.FLOAT, { "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05 })
             },
         }
 
@@ -413,11 +430,11 @@ class CozyGenMetaText:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "value": ("STRING", {"default": ""})
+                "value": (IO.STRING, {"default": ""})
             }
         }
         
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = (IO.STRING,)
     FUNCTION = "get_value"
     CATEGORY = "CozyGen/Static"
     
@@ -434,7 +451,8 @@ NODE_CLASS_MAPPINGS = {
     "CozyGenStringInput": CozyGenStringInput,
     "CozyGenChoiceInput": CozyGenChoiceInput,
     "CozyGenLoraInput": CozyGenLoraInput,
-    "CozyGenMetaText": CozyGenMetaText
+    "CozyGenMetaText": CozyGenMetaText,
+    "CozyGenBoolInput": CozyGenBoolInput
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -447,5 +465,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CozyGenStringInput": "CozyGen String Input",
     "CozyGenChoiceInput": "CozyGen Choice Input",
     "CozyGenLoraInput": "CozyGen Lora Input",
-    "CozyGenMetaText": "CozyGen Meta Text"
+    "CozyGenMetaText": "CozyGen Meta Text",
+    "CozyGenBoolInput": "CozyGen Bool Input"
 }

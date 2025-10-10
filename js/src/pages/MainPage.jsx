@@ -120,7 +120,7 @@ function App() {
   // --- WebSocket Connection ---
   useEffect(() => {
     const connectWebSocket = () => {
-      const protocol = window.location.protocol === 'https' ? 'wss' : 'ws';
+      const protocol = window.location.protocol.startsWith('https') ? 'wss' : 'ws';
       const host = window.location.host;
       const wsUrl = `${protocol}://${host}/ws`;
 
@@ -216,7 +216,8 @@ function App() {
             'CozyGenIntInput', 
             'CozyGenStringInput',
             'CozyGenChoiceInput',
-            'CozyGenLoraInput'
+            'CozyGenLoraInput',
+            'CozyGenBoolInput'
         ];
 
         // Find all nodes that are one of our recognized input types
@@ -287,6 +288,8 @@ function App() {
                     defaultValue = { lora: input.inputs.lora_value, strength: input.inputs.strength_value };
                 } else if (input.class_type === 'CozyGenImageInput') {
                     defaultValue = '';
+                } else if(input.class_type === 'CozyGenBoolInput') {
+                    defaultValue = input.inputs.value;
                 }
                 initialFormData[param_name] = defaultValue;
             } else {
@@ -428,6 +431,8 @@ function App() {
                     }
                     nodeToUpdate.inputs.strength_value = strength;
                     nodeToUpdate.inputs.lora_value = lora;
+                } else if(dynamicNode.class_type === 'CozyGenBoolInput') {
+                    nodeToUpdate.inputs.value = valueToInject;
                 }
             }
         });
@@ -448,8 +453,18 @@ function App() {
         }
 
         for(const id of Object.keys(finalWorkflow)) {
-            if(finalWorkflow[id].class_type === "CozyGenMetaText") {
-                finalWorkflow[id].inputs = { value: metaTextLines.join("\n") };
+            const node = finalWorkflow[id];
+
+            if(!node.class_type.startsWith("CozyGen")) continue;
+            
+            console.log(node);
+
+            if(!node.inputs) node.inputs = {};
+
+            node.inputs.is_cozy = true;
+
+            if(node.class_type === "CozyGenMetaText") {
+                node.inputs.value = metaTextLines.join("\n");
             }
         }
 
@@ -533,7 +548,7 @@ function App() {
                         .filter(input => input.class_type !== 'CozyGenImageInput')
                         .map(input => {
                             // Map new static node properties to the format DynamicForm expects
-                            if (['CozyGenFloatInput', 'CozyGenIntInput', 'CozyGenStringInput', 'CozyGenChoiceInput', 'CozyGenLoraInput'].includes(input.class_type)) {
+                            if (['CozyGenFloatInput', 'CozyGenIntInput', 'CozyGenStringInput', 'CozyGenChoiceInput', 'CozyGenLoraInput', 'CozyGenBoolInput'].includes(input.class_type)) {
                                 let param_type = input.class_type.replace('CozyGen', '').replace('Input', '').toUpperCase();
                                 if (param_type === 'CHOICE') {
                                     param_type = 'DROPDOWN'; // Map Choice to Dropdown
