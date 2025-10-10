@@ -103,6 +103,19 @@ async def upload_image(request: web.Request) -> web.Response:
 
     return web.json_response({"filename": unique_filename, "size": size})
 
+async def upload_workflow_file(request: web.Request) -> web.Response:
+    filename = request.match_info.get('filename', 'workflow.json')
+    workflows_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workflows")
+    workflow_path = os.path.join(workflows_dir, filename)
+    
+    workflow = await request.json()
+    with open(workflow_path, 'w') as fp:
+        json.dump(workflow, fp, indent=4)
+        
+    return web.json_response({ "filename": filename })
+    
+    
+
 async def get_workflow_list(request: web.Request) -> web.Response:
     workflows_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workflows")
     if not os.path.exists(workflows_dir):
@@ -170,5 +183,6 @@ routes = [
     web.post('/cozygen/upload_image', upload_image),
     web.get('/cozygen/workflows', get_workflow_list),
     web.get('/cozygen/workflows/{filename}', get_workflow_file),
+    web.post('/cozygen/workflows/{filename}', upload_workflow_file),
     web.get('/cozygen/get_choices', get_choices),
 ]

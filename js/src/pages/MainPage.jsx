@@ -287,7 +287,7 @@ function App() {
                 } else if(input.class_type === "CozyGenLoraInput") {
                     defaultValue = { lora: input.inputs.lora_value, strength: input.inputs.strength_value };
                 } else if (input.class_type === 'CozyGenImageInput') {
-                    defaultValue = '';
+                    defaultValue = input.inputs.image;
                 } else if(input.class_type === 'CozyGenBoolInput') {
                     defaultValue = input.inputs.value;
                 }
@@ -344,11 +344,13 @@ function App() {
 
   
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (clear = true) => {
     if (!workflowData) return;
-    setIsLoading(true);
-    setPreviewImages([]); // Clear previous images
-    setStatusText('Queuing prompt...');
+    if(clear) {
+        setIsLoading(true);
+        setPreviewImages([]); // Clear previous images
+        setStatusText('Queuing prompt...');
+    }
 
     try {
         let finalWorkflow = JSON.parse(JSON.stringify(workflowData));
@@ -448,14 +450,13 @@ function App() {
                 return;
             }
             if (finalWorkflow[node.id]) {
-                finalWorkflow[node.id].inputs.image_filename = image_filename;
+                finalWorkflow[node.id].inputs.image = image_filename;
             }
         }
 
         for(const id of Object.keys(finalWorkflow)) {
             const node = finalWorkflow[id];
-
-            if(!node.class_type.startsWith("CozyGen")) continue;
+            if(!node || !node.class_type || !node.class_type.startsWith("CozyGen")) continue;
             
             console.log(node);
 
@@ -581,13 +582,23 @@ function App() {
         {/* Sticky Generate Button Footer */}
         <div className="fixed bottom-0 left-0 right-0 bg-base-100/80 backdrop-blur-sm p-4 border-t border-base-300 z-10 shadow-lg">
             <div className="max-w-2xl mx-auto"> {/* Centered and max-width */}
-                <button
-                    onClick={handleGenerate}
-                    disabled={isLoading || !workflowData}
-                    className="w-full bg-accent text-white font-bold text-lg py-4 px-4 rounded-lg hover:bg-accent-focus transition duration-300 disabled:bg-base-300 disabled:cursor-not-allowed shadow-lg"
-                >
-                    {isLoading ? 'Generating...' : 'Generate'}
-                </button>
+                <div class="flex flex-row w-full gap-x-4">
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isLoading || !workflowData}
+                        className="w-full disabled:w-1/2 bg-accent text-white font-bold text-lg py-4 px-4 rounded-lg hover:bg-accent-focus transition duration-300 disabled:bg-base-300 disabled:cursor-not-allowed shadow-lg"
+                    >
+                        {isLoading ? 'Generating...' : 'Generate'}
+                    </button>
+                    {
+                        isLoading && <button 
+                            onClick={handleGenerate}
+                            disabled={!workflowData}
+                            class="w-1/2 bg-accent text-white font-bold text-lg py-4 px-4 rounded-lg hover:bg-accent-focus transition duration-300 disabled:bg-base-300 disabled:cursor-not-allowed shadow-lg">
+                                Add to Queue
+                        </button>
+                    }
+                </div>
                 {(isLoading && progressMax > 0) && (
                     <div className="w-full bg-base-300 rounded-full h-2.5 mt-2">
                         <div

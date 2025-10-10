@@ -11,7 +11,7 @@ import folder_paths
 from nodes import SaveImage, LoadImage
 import server # Import server
 import asyncio # Import Import asyncio
-from comfy.comfy_types import node_typing
+from comfy.comfy_types import node_typing, ComfyNodeABC, InputTypeDict
 from comfy.comfy_types.node_typing import IO
 import comfy.utils
 import comfy.sd
@@ -30,11 +30,11 @@ class _CozyGenDynamicTypes(str):
 CozyGenDynamicTypes = _CozyGenDynamicTypes("COZYGEN_DYNAMIC_TYPE")
 
 
-class CozyGenDynamicInput:
+class CozyGenDynamicInput(ComfyNodeABC):
     _NODE_CLASS_NAME = "CozyGenDynamicInput" # Link to custom JavaScript
 
     @classmethod
-    def INPUT_TYPES(cls):
+    def INPUT_TYPES(cls) -> InputTypeDict:
         return {
             "required": {
                 "param_name": (IO.STRING, {"default": "Dynamic Parameter"}),
@@ -102,33 +102,28 @@ class CozyGenBoolInput:
         return (value, )
 
 
-class CozyGenImageInput():
+class CozyGenImageInput(ComfyNodeABC):
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s) -> InputTypeDict:
+        input_dir = folder_paths.get_input_directory()
+        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+        files = folder_paths.filter_files_content_types(files, ["image"])
+        
         return {
             "required": {
                 "param_name": (IO.STRING, {"default": "Image Input"}),
-                "image_filename": (IO.STRING, {"default": ""}),
-            },
-            "optional": {
-                "default_image": (IO.IMAGE, )
-            },
-            "hidden": {
-                "is_cozy": ( IO.BOOLEAN, { "default": False } )
+                "priority": (IO.INT, { "default": 0 }),
+                "image": (sorted(files), { "image_upload": True, "image_folder": "input" }),
             }
         }
-
+    
     # The return types are now the standard IMAGE and MASK for ComfyUI image loaders.
     RETURN_TYPES = (IO.IMAGE, )
     FUNCTION = "load_image"
     CATEGORY = "CozyGen"
 
-    def load_image(self, param_name, image_filename : str, is_cozy = False, default_image = None):
-        print("IsCozy =", is_cozy)
-        if is_cozy:
-            return (LoadImage.load_image(None, image_filename)[0], )
-        else:
-            return (default_image, )
+    def load_image(self, param_name, priority,  image : str):
+        return (LoadImage.load_image(None, image)[0], )
 
         
 class CozyGenOutput(SaveImage):
@@ -387,7 +382,7 @@ class CozyGenLoraInput:
 
         return {
             "required": {
-                "model": ("MODEL",),
+                "model": (IO.MODEL,),
                 "param_name": (IO.STRING, {"default": "Lora Selector"}),
                 "priority": (IO.INT, {"default": 10}),
                 "lora_value": (CozyGenLoraInput.get_choices(), { "default": "None" }),
@@ -396,7 +391,7 @@ class CozyGenLoraInput:
         }
 
     
-    RETURN_TYPES = ("MODEL",)
+    RETURN_TYPES = (IO.MODEL,)
     FUNCTION = "get_value"
     CATEGORY = "CozyGen/Static"
     
@@ -423,22 +418,23 @@ class CozyGenLoraInput:
         
         return self.load_lora(model, lora_value, strength_value)
 
-class CozyGenMetaText:
+class CozyGenMetaText(ComfyNodeABC):
     _NODE_CLASS_NAME = "CozyGenMetaText"
     
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
+            "hidden": {
                 "value": (IO.STRING, {"default": ""})
             }
         }
         
     RETURN_TYPES = (IO.STRING,)
+    RETURN_NAMES = ("metadata",)
     FUNCTION = "get_value"
     CATEGORY = "CozyGen/Static"
     
-    def get_value(self, value):
+    def get_value(self, value=""):
         return (value,)
 
 NODE_CLASS_MAPPINGS = {

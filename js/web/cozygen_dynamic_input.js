@@ -1,4 +1,4 @@
-import { app } from "/scripts/app.js";
+import { app } from "../../scripts/app.js";
 
 (function () {
     // Mapping of ComfyUI node types and their input names to CozyGen choice_type strings

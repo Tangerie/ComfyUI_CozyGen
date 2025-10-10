@@ -53,12 +53,13 @@ const ImageInput = ({ input, value, onFormChange }) => {
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
+            setPreviewUrl('');
             setUploadedFile(file);
-            setPreviewUrl(URL.createObjectURL(file)); // Local preview
             try {
                 const response = await uploadImage(file);
                 // Update form data with the filename returned from the backend
                 onFormChange(input.inputs.param_name, { source: 'Upload', path: response.filename, url: `/view?filename=${response.filename}&type=input` });
+                setPreviewUrl(`/view?filename=${response.filename}&type=input`);
             } catch (error) {
                 console.error("Error uploading image:", error);
                 setPreviewUrl('');
@@ -125,7 +126,8 @@ const ImageInput = ({ input, value, onFormChange }) => {
             };
             reader.readAsDataURL(file);
         } else {
-            setPreviewUrl(URL.createObjectURL(file));
+            setPreviewUrl('');
+            // setPreviewUrl(URL.createObjectURL(file));
             try {
                 const response = await uploadImage(file);
                 const imageUrl = `/view?filename=${response.filename}&subfolder=input&type=input`;
